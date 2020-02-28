@@ -1,42 +1,52 @@
-This repo is for the reporting of issues found within and when using Windows Subsystem for Linux.
+This repo is for the reporting of issues found within and when using Windows Subsystem for Linux. Please read [CONTRIBUTING.md](https://github.com/Microsoft/WSL/blob/master/CONTRIBUTING.md) before making an issue submission. 
+
 - Do not open Github issues for Windows crashes (BSODs) or security issues. Please direct all Windows crashes and security issues to secure@microsoft.com. Issues with security vulnerabilities may be edited to hide the vulnerability details.
 
 ## Reporting issues in Windows Console or WSL text rendering/user experience
-Note that WSL distro's launch in the Windows Console (unless you have taken steps to launch a 3rd party console/terminal). Therefore, *please file UI/UX related issues in the [Windows Console issue tracker](https://github.com/microsoft/console)*.
+Note that WSL distro's launch in the Windows Console (unless you have taken steps to launch a 3rd party console/terminal). Therefore, *please file UI/UX related issues in the [Windows Console issue tracker](https://github.com/microsoft/console)*. 
 
-### Labels:
+## Labels:
 
-This and our [User Voice page](https://wpdev.uservoice.com/forums/266908-command-prompt-console-bash-on-ubuntu-on-windo/category/161892-bash) are your best ways to interact directly with the Windows Subsystem for Linux teams. We will be monitoring and responding to issues as best we can. Please attempt to avoid filing duplicates of open or closed items when possible. In the spirit of openness we will be tagging issues with the following:
+This is your best ways to interact directly with the Windows Subsystem for Linux teams. We will be monitoring and responding to issues as best we can. Please attempt to avoid filing duplicates of open or closed items when possible. Issues may be tagged with with the following labels:
 
-- **bug** – We consider this issue to be a bug internally. This tag is generally for bugs in implemented features, or something we consider to be a “bug level” change. Things marked with Bug have a corresponding bug in on Microsoft’s internal bug tracking system.
-  - Example: No internet connectivity in Bash [(#5)](https://github.com/Microsoft/BashOnWindows/issues/5)
+- **bug** – The issue considered to be a bug internally by the dev team. This tag is generally for gaps in implemented (read: intended to be working) WSL behavior. Things marked with **bug** have a corresponding bug in on Microsoft’s internal bug tracking system. Example: "du -h reports wrong file size on DrvFs" [(#1894)](https://github.com/microsoft/WSL/issues/1894)
 
-- **feature** – Denotes something that is not yet implemented.  The community should use our [User Voice](https://wpdev.uservoice.com/forums/266908-command-prompt-console-bash-on-ubuntu-on-windo/category/161892-bash) page for voting on which features everyone feels as the most important.  The team will take the User Voice page as input in deciding what to work on next.
-  - Example:  Docker is not working [(#85)](https://github.com/Microsoft/BashOnWindows/issues/85)
+- **feature** – Denotes something understood as not working and is not yet implemented. Example: "Cuda can not be installed" [(#327)](https:/github.com/microsoft/WSL/issues/327)
 
-- **discussion** – Denotes a discussion on the board that does not relate to a specific feature.
-  - Example: Windows Subsystem for Linux is not open source [(#178)](https://github.com/Microsoft/BashOnWindows/issues/178)
+- **fixinbound** / **fixedinNNNN** – The bug or feature request originally submitted has been addressed in whole or in part. Related or ongoing bug or feature gaps should be opened as a new issue submission if one does not already exist.
 
-- **fixinbound** – When possible, we will mark bugs that have been fixed internally.  Unfortunately we cannot say specifically when the bug will hit the insider flights.
+- **duplicate** – The submission is substantially duplicative of an existing issue, and/or has the same underlying cause.
 
-- **bydesign** – Denotes that an issue is raised that we consider is working as intended.  We will give some reasoning why this is by design.  After one week we will either close the issue or mark as Discussion depending on what comes up.
+- **need-repro** – The issue submission is missing fields from the issue [template](https://github.com/Microsoft/WSL/blob/master/ISSUE_TEMPLATE.md), cannot be reproduced with the information provided, or is not actionable.
 
-Additional tags may be used to denote specific types of issues.  These include items such as network or symlink.
+- **discussion** / **question** – Submissions which are not a bug report or feature request. Example: Windows Subsystem for Linux is not open source [(#178)](https://github.com/Microsoft/WSL/issues/178)
 
-### Closing:
+- **bydesign** / **linux-behavior** – Denotes that an issue that is considered working as intended or would behave analogously on a native Linux kernel.
+
+- **console** – The submission should be directed to the [console issue tracker](https://github.com/microsoft/console/issues).
+
+- **documentation** – The submission should be directed to the [WSL documentation issue tracker](https://github.com/MicrosoftDocs/WSL).
+
+- **wsl2** - The issue relates specifically to WSL 2.
+
+- **fixed-in-wsl2** - The issue could be resolved by switching the distro to use the WSL 2 architecture.
+
+Additional tags may be used to denote specific types of issues.
+
+## Closing:
 
 Issues may be closed by the original poster at any time.  We will close issues if:
-- One week passes after the change goes out to the Insider Fast ring
-- An issue is clearly a dup of another.  The duplicate will be linked
-- Any discussion that has clearly run its course
+- The issue is not a bug or feature request
+- The issue has been addressed
+- The issue is a duplicate of another issue
+- Discussions or questions that have ran their course
 
 ### Microsoft Links:
 
-- [MSDN Documentation](https://msdn.microsoft.com/en-us/commandline/wsl/about)
-- [Release Notes](https://msdn.microsoft.com/en-us/commandline/wsl/release_notes)
-- [User Voice](https://wpdev.uservoice.com/forums/266908-command-prompt-console-bash-on-ubuntu-on-windo/category/161892-bash)
-- [WSL Blog](https://blogs.msdn.microsoft.com/wsl)
-- [Console Blog](https://blogs.msdn.microsoft.com/commandline/)
+- [Microsoft Docs](https://docs.microsoft.com/en-us/windows/wsl/about)
+- [Release Notes](https://docs.microsoft.com/en-us/windows/wsl/release-notes)
+- [WSL Blog](https://blogs.msdn.microsoft.com/wsl) (Historical)
+- [Command Line Blog](https://blogs.msdn.microsoft.com/commandline/) (Active)
 
 ### Community Links:
 
@@ -46,6 +56,7 @@ Issues may be closed by the original poster at any time.  We will close issues i
 - List of programs that work and don't work
     - https://github.com/ethanhs/WSL-Programs
     - https://github.com/davatron5000/can-i-subsystem-it
+- Awesome WSL: https://github.com/sirredbeard/Awesome-WSL
 - Tips and guides for new bash users: https://github.com/abergs/ubuntuonwindows
 
 ### Troubleshooting:

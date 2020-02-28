@@ -1,19 +1,7 @@
 Please provide as much information as possible when reporting a bug or filing an issue on the Windows Subsystem for Linux.
 
-This Github issues page is a bugtracker.  It's intended for technical discussion and for debugging specific issues.  If you have a feature request, you should instead post it to the [UserVoice](https://wpdev.uservoice.com/forums/266908).  The UserVoice is better for tracking feature requests; it has a voting mechanism so the WSL team can put a higher priority behind issues that affect more people.
-
 ## Important: Reporting BSODs and Security issues
-Please pay special attention if you want to report BSOD or security issues:
-
-### BSODs
-When reporting BSODs, **DO NOT attach memory dumps or traces to Github issues**. Instead, send Windows crashes to secure@microsoft.com, referencing the GitHub bug number. 
-
-### Security Issues
-Special care should be taken when reporting security issues to avoid exposing sensitive information.
-
-Only send traces or logs when specifically asked to by a WSL team member, to secure@microsoft.com, referencing the GitHub bug number.
-
-> Note: Issues with security vulnerabilities may be edited to hide the vulnerability details.
+**Do not open Github issues for Windows crashes (BSODs) or security issues.**. Instead, send Windows crashes or other security-related issues to secure@microsoft.com.
 
 ## Reporting issues in Windows Console or WSL text rendering/user experience
 Note that WSL distro's launch in the Windows Console (unless you have taken steps to launch a 3rd party console/terminal). Therefore, *please file UI/UX related issues in the [Windows Console issue tracker](https://github.com/microsoft/console)*.
@@ -22,7 +10,7 @@ Note that WSL distro's launch in the Windows Console (unless you have taken step
 A well written bug will follow the following template:
 
 ### 1) Issue Title
-A title succinctly describing the issue. 
+A title succinctly describing the issue.
 
 #### Example:
 `Traceroute not working.`
@@ -31,9 +19,9 @@ A title succinctly describing the issue.
 Your Windows build number.  This can be gathered from the CMD prompt using the `ver` command.
 
 ```
-C:\> ver 
-Microsoft Windows [Version 10.0.14385] 
-``` 
+C:\> ver
+Microsoft Windows [Version 10.0.14385]
+```
 
 Note: The Windows Insider builds contain many updates and fixes. If you are running on the Creators Update (10.0.15063) please check to see if your issue has been resolved in a later build.  If you are running on the Anniversary Update (10.0.14393), please try updating to the Creators Update.
 
@@ -67,9 +55,9 @@ What was the expected result of the command?  Include examples / documentation i
 
 Run the failing command under [strace](http://manpages.ubuntu.com/manpages/wily/man1/strace.1.html).  Normal command structure is:
 
-```                           
-$ strace -ff <command> 
-```          
+```
+$ strace -ff <command>
+```
 
 > Note: `strace` can produce lengthy output. If the generated trace is more than about 20 lines please paste this into a [Gist](https://gist.github.com/) or another paste service and link in the bug.
 
@@ -92,26 +80,29 @@ access("/etc/ld.so.preload", R_OK)      = -1 ENOENT (No such file or directory)
 Some bugs require additional information such as scripts to reproduce.  Please add to this section.
 
 If there are files required, email the files to InsiderSupport@microsoft.com with:
-Subject:  Forward to WSL Team - RE: github issue <issue #>
-Body:  "Please forward to WSL Team" and include your attachment.
+
+* **Subject**:  Forward to WSL Team - RE: github issue <issue #>
+* **Body**:  "Please forward to WSL Team" and include your attachment.
 
 Common files are:
-Memory dumps found under C:\Windows\MEMORY.DMP
-Additional strace logs if the error occurs within a fork.  The following command generates an output file for every fork created:
 
-``` 
-$ strace -ff -o <outputfile> <command> 
+* Memory dumps found under C:\Windows\MEMORY.DMP
+* Additional strace logs if the error occurs within a fork. The following
+  command generates an output file for every fork created:
+
+```
+$ strace -ff -o <outputfile> <command>
 ```
 
 ### 8) Detailed Logs
-Some bugs will require more detailed logs to help determine the cause.  There is a CMD command to start detailed logging and another to stop.  The logs are generated locally into the working directory.
+Some bugs will require more detailed logs to help determine the cause.  There is a command to start detailed logging and another to stop.  The logs are generated locally into the working directory.
 
 #### Start collecting logs
 
 ```
-logman.exe create trace lxcore_kernel -p {0CD1C309-0878-4515-83DB-749843B3F5C9} -mode 0x00000008 -ft 10:00 -o .\lxcore_kernel.etl -ets 
-logman.exe create trace lxcore_user -p {D90B9468-67F0-5B3B-42CC-82AC81FFD960} -ft 1:00 -rt -o .\lxcore_user.etl -ets 
-logman.exe create trace lxcore_service -p {B99CDB5A-039C-5046-E672-1A0DE0A40211} -ft 1:00 -rt -o .\lxcore_service.etl -ets 
+logman.exe create trace lxcore_kernel -p "{0CD1C309-0878-4515-83DB-749843B3F5C9}" -mode 0x00000008 -ft 10:00 -o .\lxcore_kernel.etl -ets
+logman.exe create trace lxcore_user -p "{D90B9468-67F0-5B3B-42CC-82AC81FFD960}" -ft 1:00 -rt -o .\lxcore_user.etl -ets
+logman.exe create trace lxcore_service -p "{B99CDB5A-039C-5046-E672-1A0DE0A40211}" -ft 1:00 -rt -o .\lxcore_service.etl -ets
 ```
 
 #### Stop collecting logs
@@ -131,3 +122,45 @@ lxcore_kernel.etl
 lxcore_service.etl
 lxcore_user.etl
 ```
+
+#### Submitting logs
+
+To submit the details logs, attach them to your GitHub issue.
+
+### 9) Networking Logs
+For bugs that are related to networking, you can provide networking logs using the Feedback hub with the following steps.
+
+#### Open Feedback Hub and enter the title and description of your issue
+
+- Open Feedback hub and create a new issue by pressing `Windows Key + F` on your keyboard. 
+- Enter in the details of your issue:
+   - In `Summarize your feedback` copy and paste in the title of your Github Issue
+   - In `Explain in more detail` copy and paste a link to your Github Issue
+
+![GIF Of networking instructions](img/networkinglog1.gif)
+
+#### Choose the WSL category 
+
+- Select that your issue is a `Problem`
+- Choose the `Developer Platform` category and the `Windows Subsystem for Linux` subcategory
+
+![GIF Of networking instructions](img/networkinglog2.gif)
+
+#### Recreate your problem in the 'Additional Details' section
+
+- Select 'Other' under 'Which of the following best describes your problem'
+- Click 'Recreate My Problem' under 'Attachments
+- Ensure that `Include Data About:` is checked to 'Windows Subsystem for Linux' 
+- 'Click Start Recording' to start collecting logs
+- Recreate your problem
+- Click 'Stop Recording'
+
+![GIF Of networking instructions](img/networkinglog3.gif)
+
+#### Check your attachments and submit
+
+- Verify your recording is attached and whether you would like to send the screenshot that is automatically attached
+- Hit Submit
+- Get a link to your feedback item by clicking on 'Share my Feedback' and post that link to the Github thread so we can easily get to your feedback!
+
+![GIF Of networking instructions](img/networkinglog4.gif)

@@ -1,0 +1,18 @@
+title: Enumerations
+nav:
+  - index.md
+  - component.md
+  - deletecontaineroption.md
+  - error.md
+  - containernetworkingmode.md
+  - networkflags.md
+  - portprotocol.md
+  - containerstate.md
+  - signal.md
+  - processoutputhandle.md
+  - processoutputmode.md
+  - processstate.md
+  - vhdtype.md
+  - imageprogressstatus.md
+  - identitytokentype.md
+  - sessionterminationreason.md

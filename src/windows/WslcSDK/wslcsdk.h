@@ -1,0 +1,921 @@
+/*++
+
+Copyright (c) Microsoft. All rights reserved.
+
+Module Name:
+
+    WslcSDK.h
+
+Abstract:
+
+    This file contains the public WSL Container SDK api definitions.
+
+--*/
+#pragma once
+#include <winsock2.h>
+#include <ws2tcpip.h>
+#include <windows.h>
+#include <stdint.h>
+#include <specstrings.h>
+
+EXTERN_C_START
+
+// WSLC specific error codes
+// Ensure wslc.idl and wslcsdk.idl are also updated.
+#define WSLC_E_BASE (0x0600)
+#define WSLC_E_IMAGE_NOT_FOUND MAKE_HRESULT(SEVERITY_ERROR, FACILITY_ITF, WSLC_E_BASE + 1)                /* 0x80040601 */
+#define WSLC_E_CONTAINER_PREFIX_AMBIGUOUS MAKE_HRESULT(SEVERITY_ERROR, FACILITY_ITF, WSLC_E_BASE + 2)     /* 0x80040602 */
+#define WSLC_E_CONTAINER_NOT_FOUND MAKE_HRESULT(SEVERITY_ERROR, FACILITY_ITF, WSLC_E_BASE + 3)            /* 0x80040603 */
+#define WSLC_E_VOLUME_NOT_FOUND MAKE_HRESULT(SEVERITY_ERROR, FACILITY_ITF, WSLC_E_BASE + 4)               /* 0x80040604 */
+#define WSLC_E_CONTAINER_NOT_RUNNING MAKE_HRESULT(SEVERITY_ERROR, FACILITY_ITF, WSLC_E_BASE + 5)          /* 0x80040605 */
+#define WSLC_E_CONTAINER_IS_RUNNING MAKE_HRESULT(SEVERITY_ERROR, FACILITY_ITF, WSLC_E_BASE + 6)           /* 0x80040606 */
+#define WSLC_E_SESSION_RESERVED MAKE_HRESULT(SEVERITY_ERROR, FACILITY_ITF, WSLC_E_BASE + 7)               /* 0x80040607 */
+#define WSLC_E_INVALID_SESSION_NAME MAKE_HRESULT(SEVERITY_ERROR, FACILITY_ITF, WSLC_E_BASE + 8)           /* 0x80040608 */
+#define WSLC_E_NETWORK_NOT_FOUND MAKE_HRESULT(SEVERITY_ERROR, FACILITY_ITF, WSLC_E_BASE + 9)              /* 0x80040609 */
+#define WSLC_E_WU_SEARCH_FAILED MAKE_HRESULT(SEVERITY_ERROR, FACILITY_ITF, WSLC_E_BASE + 10)              /* 0x8004060A */
+#define WSLC_E_SDK_UPDATE_NEEDED MAKE_HRESULT(SEVERITY_ERROR, FACILITY_ITF, WSLC_E_BASE + 11)             /* 0x8004060B */
+#define WSLC_E_CONTAINER_DISABLED MAKE_HRESULT(SEVERITY_ERROR, FACILITY_ITF, WSLC_E_BASE + 12)            /* 0x8004060C */
+#define WSLC_E_REGISTRY_BLOCKED_BY_POLICY MAKE_HRESULT(SEVERITY_ERROR, FACILITY_ITF, WSLC_E_BASE + 13)    /* 0x8004060D */
+#define WSLC_E_VOLUME_NOT_AVAILABLE MAKE_HRESULT(SEVERITY_ERROR, FACILITY_ITF, WSLC_E_BASE + 14)          /* 0x8004060E */
+#define WSLC_E_SESSION_NOT_FOUND MAKE_HRESULT(SEVERITY_ERROR, FACILITY_ITF, WSLC_E_BASE + 15)             /* 0x8004060F */
+#define WSLC_E_VM_NOT_RUNNING MAKE_HRESULT(SEVERITY_ERROR, FACILITY_ITF, WSLC_E_BASE + 16)                /* 0x80040610 */
+#define WSLC_E_EVENTS_LOST MAKE_HRESULT(SEVERITY_ERROR, FACILITY_ITF, WSLC_E_BASE + 17)                   /* 0x80040611 */
+#define WSLC_E_EVENT_STREAM_FINISHED MAKE_HRESULT(SEVERITY_ERROR, FACILITY_ITF, WSLC_E_BASE + 18)         /* 0x80040612 */
+#define WSLC_E_CONTAINER_DELETED MAKE_HRESULT(SEVERITY_ERROR, FACILITY_ITF, WSLC_E_BASE + 19)             /* 0x80040613 */
+#define WSLC_E_CAPABILITY_ADDITIONS_DISABLED MAKE_HRESULT(SEVERITY_ERROR, FACILITY_ITF, WSLC_E_BASE + 20) /* 0x80040614 */
+#define WSLC_E_RUNTIME_UPDATE_NEEDED MAKE_HRESULT(SEVERITY_ERROR, FACILITY_ITF, WSLC_E_BASE + 21)         /* 0x80040615 */
+#define WSLC_E_NETWORK_PREFIX_AMBIGUOUS MAKE_HRESULT(SEVERITY_ERROR, FACILITY_ITF, WSLC_E_BASE + 22)      /* 0x80040616 */
+// Session values
+#define WSLC_SESSION_OPTIONS_SIZE 80
+#define WSLC_SESSION_OPTIONS_ALIGNMENT 8
+
+typedef struct WslcSessionSettings
+{
+    __declspec(align(WSLC_SESSION_OPTIONS_ALIGNMENT)) BYTE _opaque[WSLC_SESSION_OPTIONS_SIZE];
+} WslcSessionSettings;
+
+DECLARE_HANDLE(WslcSession);
+
+// Container values
+#define WSLC_CONTAINER_OPTIONS_SIZE 152
+#define WSLC_CONTAINER_OPTIONS_ALIGNMENT 8
+
+typedef struct WslcContainerSettings
+{
+    __declspec(align(WSLC_CONTAINER_OPTIONS_ALIGNMENT)) BYTE _opaque[WSLC_CONTAINER_OPTIONS_SIZE];
+} WslcContainerSettings;
+
+DECLARE_HANDLE(WslcContainer);
+
+// Process values
+#define WSLC_CONTAINER_PROCESS_OPTIONS_SIZE 72
+#define WSLC_CONTAINER_PROCESS_OPTIONS_ALIGNMENT 8
+typedef struct WslcProcessSettings
+{
+    __declspec(align(WSLC_CONTAINER_PROCESS_OPTIONS_ALIGNMENT)) BYTE _opaque[WSLC_CONTAINER_PROCESS_OPTIONS_SIZE];
+} WslcProcessSettings;
+
+DECLARE_HANDLE(WslcProcess);
+
+typedef enum WslcContainerNetworkingMode
+{
+    WSLC_CONTAINER_NETWORKING_MODE_NONE = 0, // No networking / isolated
+    WSLC_CONTAINER_NETWORKING_MODE_BRIDGED = 1
+} WslcContainerNetworkingMode;
+
+typedef enum WslcVhdType
+{
+    WSLC_VHD_TYPE_DYNAMIC = 0, // Expanding VHDX (default)
+    WSLC_VHD_TYPE_FIXED = 1    // Fixed-allocation VHDX (only honored by WslcCreateSessionVhdVolume)
+} WslcVhdType;
+
+typedef enum WslcVhdRequirementsFlags
+{
+    WSLC_VHD_REQ_FLAG_NONE = 0x00000000,
+    // When set, WslcVhdRequirements::uid and gid are honored. When clear,
+    // those fields are ignored and the volume is left owned by root:root.
+    WSLC_VHD_REQ_FLAG_OWNER = 0x00000001,
+} WslcVhdRequirementsFlags;
+
+DEFINE_ENUM_FLAG_OPERATORS(WslcVhdRequirementsFlags);
+
+typedef struct WslcVhdRequirements
+{
+    // Ignored by WslcSetSessionSettingsVhd
+    _In_z_ PCSTR name;
+    _In_ uint64_t sizeBytes; // Desired size (for create/expand)
+    _In_ WslcVhdType type;
+    // The remaining fields are only honored by WslcCreateSessionVhdVolume.
+    // WslcSetSessionSettingsVhd rejects non-NONE flags with E_INVALIDARG.
+    _In_ WslcVhdRequirementsFlags flags;
+    _In_ uint32_t uid; // honored iff (flags & WSLC_VHD_REQ_FLAG_OWNER)
+    _In_ uint32_t gid; // honored iff (flags & WSLC_VHD_REQ_FLAG_OWNER)
+} WslcVhdRequirements;
+
+typedef enum WslcSessionFeatureFlags
+{
+    WSLC_SESSION_FEATURE_FLAG_NONE = 0x00000000,
+    WSLC_SESSION_FEATURE_FLAG_ENABLE_GPU = 0x00000004
+} WslcSessionFeatureFlags;
+
+DEFINE_ENUM_FLAG_OPERATORS(WslcSessionFeatureFlags);
+
+typedef enum WslcSessionTerminationReason
+{
+    WSLC_SESSION_TERMINATION_REASON_UNKNOWN = 0,
+    WSLC_SESSION_TERMINATION_REASON_SHUTDOWN = 1,
+    WSLC_SESSION_TERMINATION_REASON_CRASHED = 2,
+} WslcSessionTerminationReason;
+
+typedef struct WslcSessionCrashDumpInfo
+{
+    _Field_z_ PCWSTR dumpPath;
+    _Field_z_ PCSTR processName;
+    uint32_t pid;
+    uint32_t signal;
+    uint64_t timestamp;
+} WslcSessionCrashDumpInfo;
+
+typedef __callback void(CALLBACK* WslcSessionCrashDumpCallback)(_In_ const WslcSessionCrashDumpInfo* info, _In_opt_ PVOID context);
+
+// Opaque handle returned by WslcRegisterSessionCrashDumpCallback. Holding it keeps the crash dump
+// registration alive; pass it to WslcReleaseCrashDumpSubscription to unsubscribe.
+DECLARE_HANDLE(WslcCrashDumpSubscription);
+
+STDAPI WslcInitSessionSettings(_In_ PCWSTR name, _In_ PCWSTR storagePath, _Out_ WslcSessionSettings* sessionSettings);
+
+STDAPI WslcCreateSession(_In_ WslcSessionSettings* sessionSettings, _Out_ WslcSession* session, _Outptr_opt_result_z_ PWSTR* errorMessage);
+
+// OPTIONAL SESSION SETTINGS
+STDAPI WslcSetSessionSettingsCpuCount(_In_ WslcSessionSettings* sessionSettings, _In_ uint32_t cpuCount);
+STDAPI WslcSetSessionSettingsMemory(_In_ WslcSessionSettings* sessionSettings, _In_ uint32_t memoryMB);
+STDAPI WslcSetSessionSettingsTimeout(_In_ WslcSessionSettings* sessionSettings, _In_ uint32_t timeoutMS);
+
+STDAPI WslcSetSessionSettingsVhd(_In_ WslcSessionSettings* sessionSettings, _In_opt_ const WslcVhdRequirements* vhdRequirements);
+
+STDAPI WslcSetSessionSettingsFeatureFlags(_In_ WslcSessionSettings* sessionSettings, _In_ WslcSessionFeatureFlags flags);
+
+// Allows containers to reach services listening on the Windows host loopback interface through the given hostname.
+// Disabled by default; pass null to disable. Requires WSL 3.0.5 or later.
+// hostName is not copied and must stay valid until WslcCreateSession returns.
+STDAPI WslcSetSessionSettingsHostLoopback(_In_ WslcSessionSettings* sessionSettings, _In_opt_z_ PCSTR hostName);
+
+STDAPI WslcGetSessionTerminationEvent(_In_ WslcSession session, _Out_ HANDLE* terminationEvent);
+STDAPI WslcGetSessionTerminationReason(_In_ WslcSession session, _Out_ WslcSessionTerminationReason* reason);
+
+STDAPI WslcTerminateSession(_In_ WslcSession session);
+STDAPI WslcReleaseSession(_In_ WslcSession session);
+
+// Registers a callback invoked when a Linux process crash dump is written for the session.
+// Works for any caller holding a live session. The returned subscription keeps the registration
+// alive; release it with WslcReleaseCrashDumpSubscription to unsubscribe. Multiple subscriptions
+// can be registered against the same session.
+STDAPI WslcRegisterSessionCrashDumpCallback(
+    _In_ WslcSession session,
+    _In_ WslcSessionCrashDumpCallback crashDumpCallback,
+    _In_opt_ PVOID crashDumpContext,
+    _Out_ WslcCrashDumpSubscription* subscription,
+    _Outptr_opt_result_z_ PWSTR* errorMessage);
+
+STDAPI WslcReleaseCrashDumpSubscription(_In_ WslcCrashDumpSubscription subscription);
+
+// CONTAINER DEFINITIONS
+
+typedef enum WslcPortProtocol
+{
+    WSLC_PORT_PROTOCOL_TCP = 0,
+    WSLC_PORT_PROTOCOL_UDP = 1
+} WslcPortProtocol;
+
+typedef struct WslcContainerPortMapping
+{
+    _In_ uint16_t windowsPort;      // Port on Windows host
+    _In_ uint16_t containerPort;    // Port inside container
+    _In_ WslcPortProtocol protocol; // TCP or UDP
+
+    // if you want to override the default binding address
+    _In_opt_ struct sockaddr_storage* windowsAddress; // accepts ipv4/6
+} WslcContainerPortMapping;
+
+typedef struct WslcContainerVolume
+{
+    _In_z_ PCWSTR windowsPath;
+    _In_z_ PCSTR containerPath;
+    _In_ BOOL readOnly;
+} WslcContainerVolume;
+
+typedef struct WslcContainerNamedVolume
+{
+    _In_z_ PCSTR name;          // Name of the session volume (from WslcVhdRequirements.name)
+    _In_z_ PCSTR containerPath; // Absolute path inside the container
+    _In_ BOOL readOnly;
+} WslcContainerNamedVolume;
+
+typedef struct WslcContainerNetwork
+{
+    _In_z_ PCSTR name;                               // Network name. A full network ID or unique ID prefix is also accepted.
+    _In_reads_opt_(aliasCount) const PCSTR* aliases; // DNS aliases for the container on this network; user-defined networks only
+    _In_ uint32_t aliasCount;
+    _In_opt_ const IN_ADDR* ipv4Address;  // Static IPv4 address for the container on this network; user-defined networks only
+    _In_opt_ const IN6_ADDR* ipv6Address; // Static IPv6 address for the container on this network; user-defined networks only
+} WslcContainerNetwork;
+
+typedef enum WslcContainerFlags
+{
+    WSLC_CONTAINER_FLAG_NONE = 0x00000000,
+    WSLC_CONTAINER_FLAG_AUTO_REMOVE = 0x00000001,
+    WSLC_CONTAINER_FLAG_ENABLE_GPU = 0x00000002,
+    WSLC_CONTAINER_FLAG_PRIVILEGED = 0x00000004,
+
+} WslcContainerFlags;
+
+DEFINE_ENUM_FLAG_OPERATORS(WslcContainerFlags);
+
+typedef enum WslcContainerStartFlags
+{
+    WSLC_CONTAINER_START_FLAG_NONE = 0x00000000,
+    WSLC_CONTAINER_START_FLAG_ATTACH = 0x00000001,
+
+} WslcContainerStartFlags;
+
+DEFINE_ENUM_FLAG_OPERATORS(WslcContainerStartFlags);
+
+STDAPI WslcInitContainerSettings(_In_ PCSTR imageName, _Out_ WslcContainerSettings* containerSettings);
+
+// Notes:
+//   - Returns E_INVALIDARG if both WslcSetContainerSettingsNetworkingMode and WslcSetContainerSettingsNetworks were called,
+//     or if aliases or an IP address are set on a network that is not user-defined.
+//   - Returns WSLC_E_RUNTIME_UPDATE_NEEDED if the installed WSL runtime does not support the requested settings, such as
+//     capabilities, or aliases or an IP address on the primary network.
+STDAPI WslcCreateContainer(_In_ WslcSession session, _In_ const WslcContainerSettings* containerSettings, _Out_ WslcContainer* container, _Outptr_opt_result_z_ PWSTR* errorMessage);
+
+// Opens an existing container by name, full ID, or partial ID prefix.
+// The returned WslcContainer handle is owned by the caller; release it with WslcReleaseContainer.
+// Returns WSLC_E_CONTAINER_NOT_FOUND if no matching container exists, or
+// WSLC_E_CONTAINER_PREFIX_AMBIGUOUS if the given prefix matches more than one container.
+STDAPI WslcOpenContainer(_In_ WslcSession session, _In_z_ PCSTR nameOrId, _Out_ WslcContainer* container, _Outptr_opt_result_z_ PWSTR* errorMessage);
+
+STDAPI WslcStartContainer(_In_ WslcContainer container, _In_ WslcContainerStartFlags flags, _Outptr_opt_result_z_ PWSTR* errorMessage);
+
+// OPTIONAL CONTAINER SETTINGS
+STDAPI WslcSetContainerSettingsName(_In_ WslcContainerSettings* containerSettings, _In_ PCSTR name);
+
+STDAPI WslcSetContainerSettingsInitProcess(_In_ WslcContainerSettings* containerSettings, _In_ WslcProcessSettings* initProcess);
+
+// Sets the networking mode. Defaults to WSLC_CONTAINER_NETWORKING_MODE_NONE when neither this nor
+// WslcSetContainerSettingsNetworks is called. Cannot be combined with WslcSetContainerSettingsNetworks.
+STDAPI WslcSetContainerSettingsNetworkingMode(_In_ WslcContainerSettings* containerSettings, _In_ WslcContainerNetworkingMode networkingMode);
+
+STDAPI WslcSetContainerSettingsHostName(_In_ WslcContainerSettings* containerSettings, _In_ PCSTR hostName);
+
+STDAPI WslcSetContainerSettingsDomainName(_In_ WslcContainerSettings* containerSettings, _In_ PCSTR domainName);
+
+STDAPI WslcSetContainerSettingsFlags(_In_ WslcContainerSettings* containerSettings, _In_ WslcContainerFlags flags);
+
+STDAPI WslcSetContainerSettingsPortMappings(
+    _In_ WslcContainerSettings* containerSettings,
+    _In_reads_opt_(portMappingCount) const WslcContainerPortMapping* portMappings,
+    _In_ uint32_t portMappingCount);
+
+// Add the container volumes to the volumes array
+STDAPI WslcSetContainerSettingsVolumes(
+    _In_ WslcContainerSettings* containerSettings, _In_reads_opt_(volumeCount) const WslcContainerVolume* volumes, _In_ uint32_t volumeCount);
+
+// Add named session volumes (created via WslcCreateSessionVhdVolume) to the container settings
+STDAPI WslcSetContainerSettingsNamedVolumes(
+    _In_ WslcContainerSettings* containerSettings,
+    _In_reads_opt_(namedVolumeCount) const WslcContainerNamedVolume* namedVolumes,
+    _In_ uint32_t namedVolumeCount);
+
+// Connects the container to one or more networks. The first network is the primary network.
+// Cannot be combined with WslcSetContainerSettingsNetworkingMode. Pass null and 0 to clear.
+// The networks array and the strings and addresses it references are not copied and must stay valid until
+// WslcCreateContainer returns.
+//
+// Notes:
+//   - Returns E_INVALIDARG if networks and networkCount disagree on being empty, if a network name is null or empty,
+//     or if aliases and aliasCount disagree on being empty or an alias is null.
+STDAPI WslcSetContainerSettingsNetworks(
+    _In_ WslcContainerSettings* containerSettings, _In_reads_opt_(networkCount) const WslcContainerNetwork* networks, _In_ uint32_t networkCount);
+
+// Both setters borrow the array and strings until WslcCreateContainer returns. Pass nullptr/0 to clear.
+// Creation fails with WSLC_E_CAPABILITY_ADDITIONS_DISABLED if computer policy blocks capability additions.
+STDAPI WslcSetContainerSettingsCapabilityAdditions(
+    _In_ WslcContainerSettings* containerSettings, _In_reads_opt_(capabilityCount) PCSTR const* capabilities, _In_ uint32_t capabilityCount);
+
+STDAPI WslcSetContainerSettingsCapabilityDrops(
+    _In_ WslcContainerSettings* containerSettings, _In_reads_opt_(capabilityCount) PCSTR const* capabilities, _In_ uint32_t capabilityCount);
+
+STDAPI WslcCreateContainerProcess(
+    _In_ WslcContainer container, _In_ WslcProcessSettings* newProcessSettings, _Out_ WslcProcess* newProcess, _Outptr_opt_result_z_ PWSTR* errorMessage);
+
+STDAPI WslcReleaseContainer(_In_ WslcContainer container);
+
+// GENERAL CONTAINER MANAGEMENT
+
+#define WSLC_CONTAINER_ID_BUFFER_SIZE 65 // 64 hex chars + null terminator
+
+STDAPI WslcGetContainerID(_In_ WslcContainer container, _Out_writes_(WSLC_CONTAINER_ID_BUFFER_SIZE) CHAR containerID[WSLC_CONTAINER_ID_BUFFER_SIZE]);
+
+STDAPI WslcGetContainerInitProcess(_In_ WslcContainer container, _Out_ WslcProcess* initProcess);
+
+// Retrieves the inspection data for a container.
+//
+// Parameters:
+//   container
+//       A valid WslcContainer handle representing the container to inspect.
+//
+//   inspectData
+//       On success, receives a pointer to a null-terminated ANSI string
+//       containing the inspection data.
+//
+//       The string is allocated using CoTaskMemAlloc. The caller takes
+//       ownership of the returned memory and must free it by calling
+//       CoTaskMemFree when it is no longer needed.
+//
+// Return Value:
+//   S_OK on success. Otherwise, an HRESULT error code indicating the failure.
+STDAPI WslcInspectContainer(_In_ WslcContainer container, _Outptr_result_z_ PSTR* inspectData);
+
+typedef enum WslcContainerState
+{
+    WSLC_CONTAINER_STATE_INVALID = 0,
+    WSLC_CONTAINER_STATE_CREATED = 1,
+    WSLC_CONTAINER_STATE_RUNNING = 2,
+    WSLC_CONTAINER_STATE_EXITED = 3,
+    WSLC_CONTAINER_STATE_DELETED = 4,
+} WslcContainerState;
+
+STDAPI WslcGetContainerState(_In_ WslcContainer container, _Out_ WslcContainerState* state);
+
+// Will define more signals as needed:
+typedef enum WslcSignal
+{
+    WSLC_SIGNAL_NONE = 0,     // No signal; reserved for future use
+    WSLC_SIGNAL_SIGHUP = 1,   // SIGHUP: reload / hangup
+    WSLC_SIGNAL_SIGINT = 2,   // SIGINT: interrupt (Ctrl-C)
+    WSLC_SIGNAL_SIGQUIT = 3,  // SIGQUIT: quit with core dump
+    WSLC_SIGNAL_SIGKILL = 9,  // SIGKILL: immediate termination
+    WSLC_SIGNAL_SIGTERM = 15, // SIGTERM: graceful shutdown
+} WslcSignal;
+
+STDAPI WslcStopContainer(_In_ WslcContainer container, _In_ WslcSignal signal, _In_ uint32_t timeoutSeconds, _Outptr_opt_result_z_ PWSTR* errorMessage);
+
+typedef enum WslcDeleteContainerFlags
+{
+    WSLC_DELETE_CONTAINER_FLAG_NONE = 0,
+    WSLC_DELETE_CONTAINER_FLAG_FORCE = 0x01
+} WslcDeleteContainerFlags;
+
+DEFINE_ENUM_FLAG_OPERATORS(WslcDeleteContainerFlags);
+
+STDAPI WslcDeleteContainer(_In_ WslcContainer container, _In_ WslcDeleteContainerFlags flags, _Outptr_opt_result_z_ PWSTR* errorMessage);
+
+// Connects a created or running container to a session network.
+//
+// Parameters:
+//   container
+//       A valid WslcContainer handle.
+//
+//   network
+//       The network to connect to. network->name may be a network name, full ID, or unique ID prefix. Aliases and static
+//       IP addresses are optional and are only supported on user-defined networks.
+//
+//   errorMessage
+//       Optional. On failure, receives a human-readable error message. May be null.
+//
+// Return Value:
+//   S_OK on success. Otherwise, an HRESULT error code indicating the reason for failure.
+//
+// Notes:
+//   - Returns WSLC_E_NETWORK_NOT_FOUND if no network matches network->name.
+//   - Returns WSLC_E_NETWORK_PREFIX_AMBIGUOUS if network->name is an ID prefix that matches more than one network.
+//   - Returns E_INVALIDARG if the container's networking mode does not support additional networks.
+//   - Requires WSL 3.1.0 or later; returns WSLC_E_RUNTIME_UPDATE_NEEDED on older runtimes.
+STDAPI WslcConnectContainerNetwork(_In_ WslcContainer container, _In_ const WslcContainerNetwork* network, _Outptr_opt_result_z_ PWSTR* errorMessage);
+
+// Disconnects a created or running container from a session network.
+//
+// Parameters:
+//   container
+//       A valid WslcContainer handle.
+//
+//   nameOrId
+//       The name, full ID, or unique ID prefix of the network to disconnect from.
+//
+//   errorMessage
+//       Optional. On failure, receives a human-readable error message. May be null.
+//
+// Return Value:
+//   S_OK on success. Otherwise, an HRESULT error code indicating the reason for failure.
+//
+// Notes:
+//   - Returns WSLC_E_NETWORK_NOT_FOUND if no network matches nameOrId.
+//   - Returns WSLC_E_NETWORK_PREFIX_AMBIGUOUS if nameOrId is an ID prefix that matches more than one network.
+//   - Requires WSL 3.1.0 or later; returns WSLC_E_RUNTIME_UPDATE_NEEDED on older runtimes.
+STDAPI WslcDisconnectContainerNetwork(_In_ WslcContainer container, _In_z_ PCSTR nameOrId, _Outptr_opt_result_z_ PWSTR* errorMessage);
+
+// PROCESS DEFINITIONS
+STDAPI WslcInitProcessSettings(_Out_ WslcProcessSettings* processSettings);
+
+// OPTIONAL PROCESS SETTINGS
+
+STDAPI WslcSetProcessSettingsWorkingDirectory(_In_ WslcProcessSettings* processSettings, _In_ PCSTR workingDirectory);
+
+STDAPI WslcSetProcessSettingsCmdLine(_In_ WslcProcessSettings* processSettings, _In_reads_(argc) PCSTR const* argv, size_t argc);
+
+STDAPI WslcSetProcessSettingsEnvVariables(_In_ WslcProcessSettings* processSettings, _In_reads_(argc) PCSTR const* key_value, size_t argc);
+
+// Flags that control optional behavior of a process.
+typedef enum WslcProcessFlags
+{
+    WSLC_PROCESS_FLAG_NONE = 0x00000000,
+    // Enables standard input for the process. Standard input is disabled by
+    // default: without this flag the process observes an immediately closed
+    // stdin and WSLC_PROCESS_IO_HANDLE_STDIN cannot be used.
+    WSLC_PROCESS_FLAG_STDIN = 0x00000001,
+} WslcProcessFlags;
+
+DEFINE_ENUM_FLAG_OPERATORS(WslcProcessFlags);
+
+// Sets the flags for the process, replacing any previously set flags.
+//
+// Unknown flag bits are rejected with E_INVALIDARG.
+//
+// Must be called before the settings are used to create a process
+// (WslcCreateContainerProcess) or container (WslcCreateContainer).
+STDAPI WslcSetProcessSettingsFlags(_In_ WslcProcessSettings* processSettings, _In_ WslcProcessFlags flags);
+
+typedef enum WslcProcessIOHandle
+{
+    WSLC_PROCESS_IO_HANDLE_STDIN = 0,
+    WSLC_PROCESS_IO_HANDLE_STDOUT = 1,
+    WSLC_PROCESS_IO_HANDLE_STDERR = 2
+} WslcProcessIOHandle;
+
+// Callback invoked when stdout or stderr data is available from a running
+// WSLC process.
+//
+// Parameters:
+//   ioHandle
+//       The WslcProcessIOHandle that the IO callback is for.
+//       Only STDOUT and STDERR will receive callbacks.
+//
+//   data
+//       Pointer to a buffer containing the bytes read. The buffer is owned
+//       by WSLC and is valid only for the duration of the callback.
+//
+//       The caller must not free, modify, or retain the pointer. If the
+//       caller needs to keep the data, it must copy the contents before
+//       returning from the callback.
+//
+//   dataBytes
+//       Number of bytes available in the data buffer.
+//
+//   context
+//       Caller-supplied context pointer that was provided when the callback
+//       was registered.
+//
+// Notes:
+//   - WSLC frees or reuses the buffer immediately after the callback returns.
+//   - The callback must return promptly; long-running operations may block
+//     WSLC's internal I/O processing.
+//   - The buffer is not null-terminated; it is a raw byte sequence.
+//
+typedef __callback void(CALLBACK* WslcStdIOCallback)(
+    WslcProcessIOHandle ioHandle, _In_reads_bytes_(dataBytes) const BYTE* data, _In_ uint32_t dataBytes, _In_opt_ PVOID context);
+
+// Callback invoked when a WSLC process has exited AND any remaining IO has been flushed.
+//
+// Parameters:
+//   exitCode
+//       The exit code of the process.
+//
+//   context
+//       Caller-supplied context pointer that was provided when the callback
+//       was registered.
+//
+// Notes:
+//   - Once this callback is invoked, any registered IO callbacks will no longer be called.
+//
+typedef __callback void(CALLBACK* WslcProcessExitCallback)(INT32 exitCode, _In_opt_ PVOID context);
+
+// Using any callbacks will consume the IO handles, preventing acquisition through WslcGetProcessIOHandle.
+// If using IO callbacks, also use the exit callback to prevent a race between process exit and IO buffer flushing.
+typedef struct WslcProcessCallbacks
+{
+    WslcStdIOCallback onStdOut;
+    WslcStdIOCallback onStdErr;
+    WslcProcessExitCallback onExit;
+} WslcProcessCallbacks;
+
+STDAPI WslcSetProcessSettingsCallbacks(_In_ WslcProcessSettings* processSettings, _In_ const WslcProcessCallbacks* callbacks, _In_opt_ PVOID context);
+
+// Sets IO callbacks for the init process of a container.
+// Must be called before WslcStartContainer (with WSLC_CONTAINER_START_FLAG_ATTACH).
+// Has no effect on a container that is already running.
+STDAPI WslcSetContainerInitProcessIOCallbacks(_In_ WslcContainer container, _In_ const WslcProcessCallbacks* callbacks, _In_opt_ PVOID context);
+
+// PROCESS MANAGEMENT
+
+STDAPI WslcGetProcessPid(_In_ WslcProcess process, _Out_ uint32_t* pid);
+
+STDAPI WslcGetProcessExitEvent(_In_ WslcProcess process, _Out_ HANDLE* exitEvent);
+
+typedef enum WslcProcessState
+{
+    WSLC_PROCESS_STATE_UNKNOWN = 0,
+    WSLC_PROCESS_STATE_RUNNING = 1,
+    WSLC_PROCESS_STATE_EXITED = 2,
+    WSLC_PROCESS_STATE_SIGNALLED = 3
+} WslcProcessState;
+
+STDAPI WslcGetProcessState(_In_ WslcProcess process, _Out_ WslcProcessState* state);
+
+STDAPI WslcGetProcessExitCode(_In_ WslcProcess process, _Out_ PINT32 exitCode);
+
+STDAPI WslcSignalProcess(_In_ WslcProcess process, _In_ WslcSignal signal);
+
+STDAPI WslcGetProcessIOHandle(_In_ WslcProcess process, _In_ WslcProcessIOHandle ioHandle, _Out_ HANDLE* handle);
+
+STDAPI WslcReleaseProcess(_In_ WslcProcess process);
+
+// IMAGE MANAGEMENT
+
+// Container image
+typedef struct WslcImageProgressDetail
+{
+    _Out_ uint64_t currentBytes; // bytes downloaded so far
+    _Out_ uint64_t totalBytes;   // total bytes expected
+} WslcImageProgressDetail;
+
+typedef enum WslcImageProgressStatus
+{
+    WSLC_IMAGE_PROGRESS_STATUS_UNKNOWN = 0,
+    WSLC_IMAGE_PROGRESS_STATUS_PULLING = 1,     // "Pulling fs layer"
+    WSLC_IMAGE_PROGRESS_STATUS_WAITING = 2,     // "Waiting"
+    WSLC_IMAGE_PROGRESS_STATUS_DOWNLOADING = 3, // "Downloading"
+    WSLC_IMAGE_PROGRESS_STATUS_VERIFYING = 4,   // "Verifying Checksum"
+    WSLC_IMAGE_PROGRESS_STATUS_EXTRACTING = 5,  // "Extracting"
+    WSLC_IMAGE_PROGRESS_STATUS_COMPLETE = 6     // "Pull complete"
+} WslcImageProgressStatus;
+
+typedef struct WslcImageProgressMessage
+{
+    _Out_ PCSTR id;                       // layer ID or digest
+    _Out_ WslcImageProgressStatus status; // "Downloading", "Extracting", etc.
+    _Out_ WslcImageProgressDetail detail;
+} WslcImageProgressMessage;
+
+// pointer-to-function typedef (unambiguous)
+typedef HRESULT(CALLBACK* WslcContainerImageProgressCallback)(const WslcImageProgressMessage* progress, PVOID context);
+
+// options struct typedef is a pointer type and _In_opt_ is valid
+typedef struct WslcPullImageOptions
+{
+    _In_z_ PCSTR uri;
+    WslcContainerImageProgressCallback progressCallback;
+    PVOID progressCallbackContext;
+    _In_opt_z_ PCSTR registryAuth;
+} WslcPullImageOptions;
+
+STDAPI WslcPullSessionImage(_In_ WslcSession session, _In_ const WslcPullImageOptions* options, _Outptr_opt_result_z_ PWSTR* errorMessage);
+
+typedef struct WslcImportImageOptions
+{
+    _In_opt_ WslcContainerImageProgressCallback progressCallback;
+    _In_opt_ PVOID progressCallbackContext;
+} WslcImportImageOptions;
+
+STDAPI WslcImportSessionImage(
+    _In_ WslcSession session,
+    _In_z_ PCSTR imageName,
+    _In_ HANDLE imageContent,
+    _In_ uint64_t imageContentBytes,
+    _In_opt_ const WslcImportImageOptions* options,
+    _Outptr_opt_result_z_ PWSTR* errorMessage);
+
+STDAPI WslcImportSessionImageFromFile(
+    _In_ WslcSession session, _In_z_ PCSTR imageName, _In_z_ PCWSTR path, _In_opt_ const WslcImportImageOptions* options, _Outptr_opt_result_z_ PWSTR* errorMessage);
+
+typedef struct WslcLoadImageOptions
+{
+    _In_opt_ WslcContainerImageProgressCallback progressCallback;
+    _In_opt_ PVOID progressCallbackContext;
+} WslcLoadImageOptions;
+
+STDAPI WslcLoadSessionImage(
+    _In_ WslcSession session,
+    _In_ HANDLE imageContent,
+    _In_ uint64_t imageContentBytes,
+    _In_opt_ const WslcLoadImageOptions* options,
+    _Outptr_opt_result_z_ PWSTR* errorMessage);
+
+STDAPI WslcLoadSessionImageFromFile(
+    _In_ WslcSession session, _In_z_ PCWSTR path, _In_opt_ const WslcLoadImageOptions* options, _Outptr_opt_result_z_ PWSTR* errorMessage);
+
+#define WSLC_IMAGE_NAME_LENGTH 256 // 255 chars + null
+
+typedef struct WslcImageInfo
+{
+    // we should expose this
+    CHAR name[WSLC_IMAGE_NAME_LENGTH];
+    uint8_t sha256[32];
+    int64_t sizeBytes;
+    uint64_t createdUnixTime;
+} WslcImageInfo;
+
+STDAPI WslcDeleteSessionImage(_In_ WslcSession session, _In_z_ PCSTR nameOrID, _Outptr_opt_result_z_ PWSTR* errorMessage);
+
+typedef struct WslcTagImageOptions
+{
+    _In_z_ PCSTR image; // Source image name or ID.
+    _In_z_ PCSTR repo;  // Target repository name.
+    _In_z_ PCSTR tag;   // Target tag name.
+} WslcTagImageOptions;
+
+STDAPI WslcTagSessionImage(_In_ WslcSession session, _In_ const WslcTagImageOptions* options, _Outptr_opt_result_z_ PWSTR* errorMessage);
+
+typedef struct WslcPushImageOptions
+{
+    _In_z_ PCSTR image;
+    _In_z_ PCSTR registryAuth; // Base64-encoded X-Registry-Auth header value.
+    _In_opt_ WslcContainerImageProgressCallback progressCallback;
+    _In_opt_ PVOID progressCallbackContext;
+} WslcPushImageOptions;
+
+STDAPI WslcPushSessionImage(_In_ WslcSession session, _In_ const WslcPushImageOptions* options, _Outptr_opt_result_z_ PWSTR* errorMessage);
+
+typedef enum WslcIdentityTokenType
+{
+    WSLC_IDENTITY_TOKEN_TYPE_UNKNOWN = 0,
+    WSLC_IDENTITY_TOKEN_TYPE_TOKEN = 1,
+    WSLC_IDENTITY_TOKEN_TYPE_CREDENTIALS = 2,
+} WslcIdentityTokenType;
+
+// Authenticates with a container registry and returns an identity token suitable for use as
+// the registryAuth value in WslcPullSessionImage and WslcPushSessionImage.
+//
+// Parameters:
+//   session
+//       A valid WslcSession handle.
+//
+//   serverAddress
+//       The registry server address (e.g. "127.0.0.1:5000").
+//
+//   username
+//       The username for authentication.
+//
+//   password
+//       The password for authentication.
+//
+//   identityToken
+//       On success, receives a pointer to a null-terminated ANSI string containing a
+//       base64-encoded JSON object that can be passed directly as the registryAuth value to
+//       WslcPullSessionImage or WslcPushSessionImage.
+//
+//       The string is allocated using CoTaskMemAlloc. The caller takes ownership of the
+//       returned memory and must free it by calling CoTaskMemFree when it is no longer needed.
+//
+//   tokenType
+//       Optional. On success, receives the type of credential embedded in identityToken:
+//         WSLC_IDENTITY_TOKEN_TYPE_TOKEN      - the server returned an identity token;
+//                                               identityToken encodes {"identitytoken": ...}
+//         WSLC_IDENTITY_TOKEN_TYPE_CREDENTIALS - the server returned no token; the supplied
+//                                               username/password are embedded instead as
+//                                               {"username": ..., "password": ...}
+//       On failure, set to WSLC_IDENTITY_TOKEN_TYPE_UNKNOWN.
+//       May be null if the caller does not need the token type.
+//
+//   errorMessage
+//       Optional. On failure, receives a human-readable error message. May be null.
+//
+// Return Value:
+//   S_OK on success. Otherwise, an HRESULT error code indicating the failure.
+//
+// Outcome table:
+//   Outcome                       | HRESULT | identityToken                        | tokenType
+//   ------------------------------|---------|--------------------------------------|----------
+//   Failure                       | FAILED  | nullptr                              | UNKNOWN
+//   Success, server returns token | S_OK    | base64({"identitytoken": "<token>"}) | TOKEN
+//   Success, no token returned    | S_OK    | base64({"username":..,"password":..})| CREDENTIALS
+STDAPI WslcSessionAuthenticate(
+    _In_ WslcSession session,
+    _In_z_ PCSTR serverAddress,
+    _In_z_ PCSTR username,
+    _In_z_ PCSTR password,
+    _Outptr_result_z_ PSTR* identityToken,
+    _Out_opt_ WslcIdentityTokenType* tokenType,
+    _Outptr_opt_result_z_ PWSTR* errorMessage);
+
+// Retrieves the list of container images
+// Parameters:
+//   session
+//       A valid WslcSession handle.
+//
+//   images
+//       On success, receives a pointer to a contiguous array of
+//       WslcImageInfo structures describing the images
+//
+//       The array is allocated using CoTaskMemAlloc. The caller takes
+//       ownership of the memory and must free it by calling
+//       CoTaskMemFree when it is no longer needed.
+//
+//   count
+//       On success, receives the number of elements in the images array.
+//       On failure, *count is set to 0.
+//
+// Return Value:
+//   S_OK on success. Otherwise, an HRESULT error code indicating the
+//   reason for failure.
+//
+// Notes:
+//   - The caller must pass non-null pointers for both 'images' and 'count'.
+//
+
+STDAPI WslcListSessionImages(_In_ WslcSession session, _Outptr_result_buffer_(*count) WslcImageInfo** images, _Out_ uint32_t* count);
+
+// NETWORKS
+
+#define WSLC_NETWORK_ID_LENGTH 65      // 64 chars + null
+#define WSLC_NETWORK_NAME_LENGTH 256   // 255 chars + null
+#define WSLC_NETWORK_DRIVER_LENGTH 256 // 255 chars + null
+
+typedef enum WslcNetworkFlags
+{
+    WSLC_NETWORK_FLAG_NONE = 0x00000000,
+    WSLC_NETWORK_FLAG_ENABLE_IPV4 = 0x00000001,
+    WSLC_NETWORK_FLAG_ENABLE_IPV6 = 0x00000002,
+    WSLC_NETWORK_FLAG_INTERNAL = 0x00000004,
+} WslcNetworkFlags;
+
+DEFINE_ENUM_FLAG_OPERATORS(WslcNetworkFlags);
+
+typedef struct WslcNetworkInfo
+{
+    CHAR id[WSLC_NETWORK_ID_LENGTH];
+    CHAR name[WSLC_NETWORK_NAME_LENGTH];
+    CHAR driver[WSLC_NETWORK_DRIVER_LENGTH];
+    int64_t createdUnixTime; // 0 if unknown.
+    WslcNetworkFlags flags;
+
+    // Subnets and gateways in network byte order. A prefix length of 0 means the network has no
+    // subnet for that address family, and an all-zero gateway means no gateway is configured.
+    uint8_t ipv4PrefixLength;
+    uint8_t ipv6PrefixLength;
+    IN_ADDR ipv4Subnet;
+    IN_ADDR ipv4Gateway;
+    IN6_ADDR ipv6Subnet;
+    IN6_ADDR ipv6Gateway;
+} WslcNetworkInfo;
+
+// Retrieves the list of networks in a session.
+//
+// Parameters:
+//   session
+//       A valid WslcSession handle.
+//
+//   networks
+//       On success, receives a pointer to a contiguous array of WslcNetworkInfo structures
+//       describing the networks, or null if there are none.
+//
+//       The array is allocated using CoTaskMemAlloc. The caller takes ownership of the
+//       memory and must free it by calling CoTaskMemFree when it is no longer needed.
+//
+//   count
+//       On success, receives the number of elements in the networks array.
+//       On failure, *count is set to 0.
+//
+//   errorMessage
+//       Optional. On failure, receives a human-readable error message. May be null.
+//
+// Return Value:
+//   S_OK on success. Otherwise, an HRESULT error code indicating the reason for failure.
+//
+// Notes:
+//   - Returns WSLC_E_RUNTIME_UPDATE_NEEDED if the installed WSL runtime does not support network management.
+STDAPI WslcListSessionNetworks(
+    _In_ WslcSession session,
+    _Outptr_result_buffer_maybenull_(*count) WslcNetworkInfo** networks,
+    _Out_ uint32_t* count,
+    _Outptr_opt_result_z_ PWSTR* errorMessage);
+
+typedef struct WslcNetworkSettings
+{
+    _In_z_ PCSTR name;
+
+    // WSLC_NETWORK_FLAG_ENABLE_IPV4, WSLC_NETWORK_FLAG_ENABLE_IPV6 and WSLC_NETWORK_FLAG_INTERNAL are accepted. IPv4 is
+    // always enabled; set both WSLC_NETWORK_FLAG_ENABLE_IPV4 and WSLC_NETWORK_FLAG_ENABLE_IPV6 for a dual-stack network.
+    // WSLC_NETWORK_FLAG_ENABLE_IPV6 without WSLC_NETWORK_FLAG_ENABLE_IPV4 (IPv6 only) returns E_NOTIMPL.
+    WslcNetworkFlags flags;
+
+    // Optional subnet and gateway in network byte order. Set the prefix length of at most one address family. The
+    // session chooses an IPv4 subnet when none is set, but has no default IPv6 subnets, so set an IPv6 subnet when
+    // IPv6 is enabled. An all-zero gateway lets the session choose the gateway.
+    uint8_t ipv4PrefixLength;
+    uint8_t ipv6PrefixLength;
+    IN_ADDR ipv4Subnet;
+    IN_ADDR ipv4Gateway;
+    IN6_ADDR ipv6Subnet;
+    IN6_ADDR ipv6Gateway;
+} WslcNetworkSettings;
+
+// Creates a bridge network in a session.
+//
+// Parameters:
+//   session
+//       A valid WslcSession handle.
+//
+//   settings
+//       The settings of the network to create.
+//
+//   networkInfo
+//       Optional. On success, receives the properties of the created network. May be null.
+//
+//   errorMessage
+//       Optional. On failure, receives a human-readable error message. May be null.
+//
+// Return Value:
+//   S_OK on success. Otherwise, an HRESULT error code indicating the reason for failure.
+//
+// Notes:
+//   - Returns HRESULT_FROM_WIN32(ERROR_ALREADY_EXISTS) if a network with the same name exists.
+//   - Returns E_INVALIDARG if the name is invalid or reserved, if flags contains an unsupported value, if both prefix
+//     lengths are set, if a prefix length is out of range, if a subnet is set for an address family that is not enabled,
+//     or if a gateway is set without a subnet of the same address family.
+//   - Returns WSLC_E_RUNTIME_UPDATE_NEEDED if the installed WSL runtime does not support network management.
+STDAPI WslcCreateSessionNetwork(
+    _In_ WslcSession session, _In_ const WslcNetworkSettings* settings, _Out_opt_ WslcNetworkInfo* networkInfo, _Outptr_opt_result_z_ PWSTR* errorMessage);
+
+// Deletes a network from a session.
+//
+// Parameters:
+//   session
+//       A valid WslcSession handle.
+//
+//   nameOrId
+//       The name, full ID, or unique ID prefix of the network to delete. A full ID match takes precedence over a name match,
+//       and a name match takes precedence over an ID prefix match.
+//
+//   errorMessage
+//       Optional. On failure, receives a human-readable error message. May be null.
+//
+// Return Value:
+//   S_OK on success. Otherwise, an HRESULT error code indicating the reason for failure.
+//
+// Notes:
+//   - Returns WSLC_E_NETWORK_NOT_FOUND if no network matches nameOrId.
+//   - Returns WSLC_E_NETWORK_PREFIX_AMBIGUOUS if nameOrId is an ID prefix that matches more than one network.
+//   - Returns HRESULT_FROM_WIN32(ERROR_SHARING_VIOLATION) if a container is connected to the network.
+//   - Returns WSLC_E_RUNTIME_UPDATE_NEEDED if the installed WSL runtime does not support network management.
+STDAPI WslcDeleteSessionNetwork(_In_ WslcSession session, _In_z_ PCSTR nameOrId, _Outptr_opt_result_z_ PWSTR* errorMessage);
+
+// STORAGE
+
+STDAPI WslcCreateSessionVhdVolume(_In_ WslcSession session, _In_ const WslcVhdRequirements* options, _Outptr_opt_result_z_ PWSTR* errorMessage);
+STDAPI WslcDeleteSessionVhdVolume(_In_ WslcSession session, _In_z_ PCSTR name, _Outptr_opt_result_z_ PWSTR* errorMessage);
+
+// INSTALL
+
+typedef enum WslcComponentFlags
+{
+    WSLC_COMPONENT_FLAG_NONE = 0,
+    // Services provided by the Virtual Machine Platform optional feature (other optional features may provide these services as
+    // well). Installing this component will require a reboot.
+    WSLC_COMPONENT_FLAG_VIRTUAL_MACHINE_PLATFORM = 1,
+    // The WSL runtime package, at an appropriate version to provide support for WSLC.
+    WSLC_COMPONENT_FLAG_WSL_PACKAGE = 2,
+    // Set if the WSLC SDK itself needs to be updated.
+    WSLC_COMPONENT_FLAG_SDK_NEEDS_UPDATE = 4,
+} WslcComponentFlags;
+
+DEFINE_ENUM_FLAG_OPERATORS(WslcComponentFlags);
+
+STDAPI WslcGetMissingComponents(_Out_ WslcComponentFlags* missingComponents);
+
+typedef struct WslcVersion
+{
+    uint32_t major;
+    uint32_t minor;
+    uint32_t revision;
+} WslcVersion;
+STDAPI WslcGetVersion(_Out_writes_(1) WslcVersion* version);
+
+typedef __callback void(CALLBACK* WslcInstallCallback)(
+    _In_ WslcComponentFlags component, _In_ uint32_t progressSteps, _In_ uint32_t totalSteps, _In_opt_ PVOID context);
+
+typedef enum WslcInstallOptions
+{
+    WSLC_INSTALL_OPTION_NONE = 0,
+    // Allows components to be reinstalled.
+    WSLC_INSTALL_OPTION_REPAIR = 1,
+} WslcInstallOptions;
+
+DEFINE_ENUM_FLAG_OPERATORS(WslcInstallOptions);
+
+// Callbacks will only be made for components that are actively installed by this call.
+// The list of required components can be acquired prior to this call with `WslcGetMissingComponents`.
+STDAPI WslcInstallWithDependencies(
+    _In_ WslcComponentFlags components, _In_ WslcInstallOptions options, _In_opt_ WslcInstallCallback progressCallback, _In_opt_ PVOID context);
+
+EXTERN_C_END

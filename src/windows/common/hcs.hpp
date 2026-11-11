@@ -1,0 +1,166 @@
+/*++
+
+Copyright (c) Microsoft. All rights reserved.
+
+Module Name:
+
+    hcs.hpp
+
+Abstract:
+
+    This file contains host compute service helper function declarations.
+
+--*/
+
+#pragma once
+#include "hcs_schema.h"
+#include "hns_schema.h"
+#include "disk.hpp"
+#include <ComputeNetwork.h>
+#include <ComputeCore.h>
+#include <cstdint>
+#include <filesystem>
+#include <string_view>
+
+namespace wsl::windows::common::hcs {
+
+using unique_hcn_endpoint = wil::unique_any<HCN_ENDPOINT, decltype(&HcnCloseEndpoint), HcnCloseEndpoint>;
+
+using unique_hcn_service_callback = wil::unique_any<HCN_CALLBACK, decltype(&HcnUnregisterServiceCallback), HcnUnregisterServiceCallback>;
+
+using unique_hcn_guest_network_service_callback =
+    wil::unique_any<HCN_CALLBACK, decltype(&HcnUnregisterGuestNetworkServiceCallback), HcnUnregisterGuestNetworkServiceCallback>;
+
+using unique_hcn_guest_network_service =
+    wil::unique_any<HCN_GUESTNETWORKSERVICE, decltype(&::HcnCloseGuestNetworkService), ::HcnCloseGuestNetworkService>;
+
+using unique_hcn_network = wil::unique_any<HCN_NETWORK, decltype(&HcnCloseNetwork), HcnCloseNetwork>;
+
+using unique_hcs_operation = wil::unique_any<HCS_OPERATION, decltype(&HcsCloseOperation), HcsCloseOperation>;
+
+using unique_hcs_system = wil::unique_any<HCS_SYSTEM, decltype(&HcsCloseComputeSystem), HcsCloseComputeSystem>;
+
+void AddPlan9Share(
+    _In_ HCS_SYSTEM ComputeSystem,
+    _In_ PCWSTR Name,
+    _In_ PCWSTR AccessName,
+    _In_ PCWSTR Path,
+    _In_ UINT32 Port,
+    _In_ Plan9ShareFlags Flags,
+    _In_opt_ HANDLE UserToken = nullptr);
+
+void RemovePlan9Share(_In_ HCS_SYSTEM ComputeSystem, _In_ PCWSTR AccessName, _In_ UINT32 Port);
+
+void AddVhd(_In_ HCS_SYSTEM ComputeSystem, _In_ PCWSTR VhdPath, _In_ ULONG Lun, _In_ bool ReadOnly = false);
+
+void AddPassThroughDisk(_In_ HCS_SYSTEM ComputeSystem, _In_ PCWSTR Disk, _In_ ULONG Lun, _In_ bool ReadOnly);
+
+/// <summary>
+/// Adds a pass-through disk to a compute system, retrying while the disk is still in use by the host.
+/// </summary>
+void AddPassThroughDiskWithRetry(_In_ HCS_SYSTEM ComputeSystem, _In_ PCWSTR Disk, _In_ ULONG Lun, _In_ bool ReadOnly, _In_ size_t TimeoutMs);
+
+/// <summary>
+/// Adds a VHD to a compute system, granting the VM access to the file if needed.
+/// Flags is updated as soon as access is granted so callers can revoke access if this fails.
+/// </summary>
+void AddVhdWithAccess(
+    _In_ HCS_SYSTEM ComputeSystem,
+    _In_ PCWSTR VmId,
+    _In_ PCWSTR VhdPath,
+    _In_ ULONG Lun,
+    _In_ bool ReadOnly,
+    _In_opt_ HANDLE UserToken,
+    _Inout_ wsl::windows::common::disk::DiskStateFlags& Flags);
+
+unique_hcs_system CreateComputeSystem(_In_ PCWSTR Id, _In_ PCWSTR Configuration);
+
+unique_hcs_operation CreateOperation();
+
+wsl::shared::hns::HNSEndpoint GetEndpointProperties(HCN_ENDPOINT endpoint);
+
+const std::vector<std::string>& GetProcessorFeatures();
+
+GUID GetRuntimeId(_In_ HCS_SYSTEM ComputeSystem);
+
+std::pair<uint32_t, uint32_t> GetSchemaVersion();
+
+void GrantVmAccess(_In_ PCWSTR VmId, _In_ PCWSTR FilePath);
+
+/// <summary>
+/// Grants the VM worker process access to a physical disk.
+/// An elevated user token is required because a block device cannot be accessed via impersonation.
+/// </summary>
+void GrantVmWorkerProcessAccessToDisk(_In_ PCWSTR VmId, _In_ PCWSTR Disk, _In_opt_ HANDLE UserToken);
+
+/// <summary>
+/// Assigns the host GPUs to a running compute system using mirrored assignment. The GDI acceleration
+/// and presentation settings are only sent to hosts that support them.
+/// </summary>
+void AddMirroredGpu(_In_ HCS_SYSTEM ComputeSystem, _In_ bool AllowVendorExtension = true, _In_ bool DisableGdiAcceleration = true, _In_ bool DisablePresentation = true);
+
+void ModifyComputeSystem(_In_ HCS_SYSTEM ComputeSystem, _In_ PCWSTR Configuration, _In_opt_ HANDLE Identity = nullptr);
+
+/// <summary>
+/// Adds or removes a host endpoint adapter, optionally retrying additions while the host network stack settles.
+/// Adding an endpoint that is already attached is treated as success because the requested state
+/// has already been reached.
+/// </summary>
+void ModifyNetworkAdapter(
+    _In_ HCS_SYSTEM ComputeSystem,
+    _In_ PCWSTR ResourcePath,
+    _In_ ModifyRequestType RequestType,
+    _In_ const GUID& EndpointId,
+    _In_ const GUID& InstanceId,
+    _In_ const wsl::shared::string::MacAddress& MacAddress,
+    _In_ bool Retry = false);
+
+unique_hcs_system OpenComputeSystem(_In_ PCWSTR Id, _In_ DWORD RequestedAccess);
+
+void RegisterCallback(_In_ HCS_SYSTEM ComputeSystem, _In_ HCS_EVENT_CALLBACK Callback, _In_ void* Context);
+
+/// <summary>
+/// Removes a disk from a compute system, undoing the host state changes that were performed to attach it.
+/// Access is revoked if it was granted, and the disk is brought back online if it was taken offline.
+/// UserToken must match the identity that was used to grant access, or be null if access was granted as the service.
+/// </summary>
+HRESULT RemoveDiskWithAccess(
+    _In_ HCS_SYSTEM ComputeSystem,
+    _In_ PCWSTR VmId,
+    _In_ PCWSTR Disk,
+    _In_ ULONG Lun,
+    _In_opt_ HANDLE UserToken,
+    _In_ wsl::windows::common::disk::DiskStateFlags Flags,
+    _In_ size_t TimeoutMs = wsl::windows::common::disk::c_defaultDiskTimeoutMs);
+
+void RemoveScsiDisk(_In_ HCS_SYSTEM ComputeSystem, _In_ ULONG Lun);
+
+void RevokeVmAccess(_In_ PCWSTR VmId, _In_ PCWSTR FilePath, _In_opt_ HANDLE UserToken = nullptr);
+
+void StartComputeSystem(_In_ HCS_SYSTEM ComputeSystem, _In_ LPCWSTR Configuration);
+
+void TerminateComputeSystem(_In_ HCS_SYSTEM ComputeSystem);
+
+std::filesystem::path GenerateVmCrashLogPath(const std::filesystem::path& Folder, const GUID& VmId);
+
+void WriteVmCrashLog(const std::filesystem::path& Path, std::uint32_t MaxFileCount, HANDLE UserToken, std::wstring_view CrashLog);
+
+std::filesystem::path CreateVmSavedStateFile(const std::filesystem::path& Folder, const GUID& VmId, HANDLE UserToken);
+
+void EnforceVmSavedStateFileLimit(const std::filesystem::path& Folder, size_t MaxFileCount, HANDLE UserToken);
+
+unique_hcn_service_callback RegisterServiceCallback(_In_ HCS_NOTIFICATION_CALLBACK Callback, _In_ PVOID Context);
+
+unique_hcn_guest_network_service_callback RegisterGuestNetworkServiceCallback(
+    _In_ const unique_hcn_guest_network_service& GuestNetworkService, _In_ HCS_NOTIFICATION_CALLBACK Callback, _In_ PVOID Context);
+
+bool IsDisableVgpuSettingsSupported();
+
+// Small backing pages are disabled on builds affected by a VID partition-teardown deadlock.
+bool IsSmallPageMemorySupported();
+
+bool IsNestedVirtualizationSupported();
+
+std::pair<bool, bool> GetPerfmonCapabilities();
+
+} // namespace wsl::windows::common::hcs

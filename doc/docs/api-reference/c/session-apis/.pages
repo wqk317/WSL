@@ -1,0 +1,18 @@
+title: Session APIs
+nav:
+  - index.md
+  - wslcinitsessionsettings.md
+  - wslccreatesession.md
+  - wslcsetsessionsettingscpucount.md
+  - wslcsetsessionsettingsmemory.md
+  - wslcsetsessionsettingstimeout.md
+  - wslcsetsessionsettingsvhd.md
+  - wslcsetsessionsettingsfeatureflags.md
+  - wslcsetsessionsettingshostloopback.md
+  - wslcgetsessionterminationevent.md
+  - wslcgetsessionterminationreason.md
+  - wslcregistersessioncrashdumpcallback.md
+  - wslcreleasecrashdumpsubscription.md
+  - wslcterminatesession.md
+  - wslcreleasesession.md
+  - wslcsessionauthenticate.md
